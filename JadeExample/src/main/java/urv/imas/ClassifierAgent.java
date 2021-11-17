@@ -12,12 +12,18 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.util.Logger;
+import weka.core.Utils;
+import weka.core.Instances;
+import weka.core.Instance;
+import weka.core.converters.ConverterUtils.DataSource;
+import java.io.File;
 
 public class ClassifierAgent extends Agent {
     /*****************************************************************
      Common code for all agents
      *****************************************************************/
     private final String myType = "ClassifierAgent";
+    private Classifier classifier;
     private String getInfo(){
         return String.format("[%s - %s]:\n",myType,getLocalName());
     }
@@ -54,6 +60,7 @@ public class ClassifierAgent extends Agent {
         try {
             DFService.register(this,dfd);
             addBehaviour(new WaitAndReplyBehaviour());
+            classifier=new Classifier();
         } catch (FIPAException e) {
             myLogger.log(Logger.SEVERE, getInfo()+" - Cannot register with DF", e);
             doDelete();
@@ -85,6 +92,7 @@ public class ClassifierAgent extends Agent {
                                         AID msgTo = SearchAgent("ReasoningAgent")[0].getName();
                                         _msg.addReceiver(msgTo);
                                         send(_msg);
+                                        classifier.LoadData("audit_risk.arff");
                                         myLogger.log(Logger.INFO,getInfo()+" Send ["+_msg.getPerformative()+"] 'GetReady' to ("+msgTo.getLocalName()+")");
                                     }
                                 });
@@ -98,5 +106,29 @@ public class ClassifierAgent extends Agent {
                 }
             }
         }
+    }
+    /*****************************************************************
+     Classifier class
+     *****************************************************************/
+    public class Classifier{
+        public Classifier(){
+            System.out.println("Create Classifier!");
+        }
+
+        public void LoadData(String filename){
+            try {
+                System.out.println("Loading data from :"+filename);
+                DataSource source = new DataSource(filename);
+//                Instances data = DataSource.read(filename);
+                Instances data = source.getDataSet();
+                // uses the last attribute as class attribute
+                if (data.classIndex() == -1)
+                    data.setClassIndex(data.numAttributes() - 1);
+                System.out.println("Num Instances: "+data.numInstances()+"\nNum Class: "+data.numClasses()+"\nNum Attrs: "+data.numAttributes());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
     }
 }
