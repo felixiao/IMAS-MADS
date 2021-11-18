@@ -11,6 +11,7 @@ import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
 import jade.util.Logger;
 import urv.imas.behaviours.FSMAgent;
 
@@ -41,6 +42,40 @@ public class UserAgent extends Agent {
             }
         return result;
     }
+    protected class SendMsgBehaviour extends OneShotBehaviour{
+        String m_content;
+        int m_type;
+        String m_to;
+        public SendMsgBehaviour(String Content,int ACLMessageType,String to){
+            m_content= Content;
+            m_type = ACLMessageType;
+            m_to = to;
+        }
+        @Override
+        public void action() {
+            ACLMessage msg = new ACLMessage(m_type);
+            msg.setContent(m_content);
+            AID msgTo = SearchAgent(m_to)[0].getName();
+            msg.addReceiver(msgTo);
+            send(msg);
+            myLogger.log(Logger.INFO,getInfo()+" Send ["+msg.getPerformative()+"] '"+m_content+"' to ("+msgTo.getLocalName()+")");
+        }
+    }
+    protected class AutoReplyBehaviour extends OneShotBehaviour{
+        ACLMessage m_reply;
+        public AutoReplyBehaviour(ACLMessage msg){
+            m_reply = msg.createReply();
+            m_reply.setContent(msg.getContent()+"-Received!");
+            m_reply.setPerformative(ACLMessage.INFORM);
+            myLogger.log(Logger.INFO, getInfo()+ " Received ["+msg.getPerformative()+"] '"+msg.getContent()+"' from (" + msg.getSender().getLocalName()+")");
+        }
+        @Override
+        public void action() {
+            send(m_reply);
+            myLogger.log(Logger.INFO, getInfo() + " Send [" + m_reply.getPerformative() + "] '" + m_reply.getContent() + "' to (" + m_reply.getSender().getLocalName() + ")");
+        }
+    }
+
     /*****************************************************************
      Agent specific codes
      *****************************************************************/
@@ -72,36 +107,37 @@ public class UserAgent extends Agent {
 
     // Wait and reply
     private class WaitAndReply extends CyclicBehaviour{
+        MessageTemplate filterMsg_Inform = null;
+        MessageTemplate filterMsg_Request = null;
+        public WaitAndReply(){
+            filterMsg_Request = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.REQUEST),
+                    MessageTemplate.MatchLanguage("English"));
+            filterMsg_Inform = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.INFORM),
+                    MessageTemplate.MatchLanguage("English"));
+        }
+
         @Override
         public void action() {
-            ACLMessage msg = myAgent.receive();
-            if(msg != null) {
-                ACLMessage reply = msg.createReply();
-                if(msg.getPerformative()== ACLMessage.INFORM){
-                    String content = msg.getContent();
-                    if (content != null){
-                        myLogger.log(Logger.INFO, getInfo()+ " Received ["+msg.getPerformative()+"] '"+content+"' from (" + msg.getSender().getLocalName()+")");
-                        switch (content){
-                            case "Start":
-                                myAgent.addBehaviour(new CheckingBehaviour());
-                                break;
-                            case "GetReady":
-                                reply.setPerformative(ACLMessage.INFORM);
-                                reply.setContent("GetReady-Received");
-                                if(msg.getSender().getClass().getName()=="ReasoningAgent"){
-                                    myLogger.log(Logger.INFO,"Full Loop! System is Ready!");
-                                }
-                                break;
-                            case "ImReady":
-                                myAgent.addBehaviour(new ShowBehaviour());
-                                break;
-                        }
-                        if(reply.getContent()!=null) {
-                            send(reply);
-                            myLogger.log(Logger.INFO, getInfo() + " Send [" + reply.getPerformative() + "] '" + reply.getContent() + "' to (" + reply.getSender().getLocalName() + ")");
-                        }
+            ACLMessage msgInform = myAgent.receive(filterMsg_Inform);
+            ACLMessage msgRequest = myAgent.receive(filterMsg_Request);
+            if(msgRequest != null) {
+                addBehaviour(new AutoReplyBehaviour(msgRequest));
+                String content = msgRequest.getContent();
+                if (content != null) {
+                    switch (content){
+                        case "Start":
+                            myAgent.addBehaviour(new CheckingBehaviour());
+                            break;
+                        case "ImReady":
+                            myLogger.log(Logger.INFO,"Full Loop! System is Ready!");
+                            myAgent.addBehaviour(new ShowBehaviour());
+                            myAgent.addBehaviour(new SendMsgBehaviour("Train",ACLMessage.REQUEST,"BrokerAgent"));
+                            break;
                     }
                 }
+            }
+            if(msgInform!=null){
+                myLogger.log(Logger.INFO, getInfo()+ " Received ["+msgInform.getPerformative()+"] '"+msgInform.getContent()+"' from (" + msgInform.getSender().getLocalName()+")");
             }
         }
     }
@@ -113,27 +149,13 @@ public class UserAgent extends Agent {
     }
 
     // start behaviour
-    private class CheckingBehaviour extends Behaviour{
+    private class CheckingBehaviour extends OneShotBehaviour{
         public boolean finish;
         @Override
         public void action() {
-            myLogger.log(Logger.INFO, getInfo()+ " Change State to Check!");
-            ACLMessage reply = new ACLMessage(ACLMessage.INFORM);
-            reply.setContent("GetReady");
-//            reply.setReplyWith("broker1");
-            AID msgTo = SearchAgent("BrokerAgent")[0].getName();
-            reply.addReceiver(msgTo);
-            send(reply);
-            myLogger.log(Logger.INFO,getInfo()+" Send ["+reply.getPerformative()+"] 'GetReady' to ("+msgTo.getLocalName()+")");
-            finish=true;
+            addBehaviour(new SendMsgBehaviour("GetReady",ACLMessage.REQUEST,"BrokerAgent"));
         }
 
-        @Override
-        public boolean done() {
-            return finish;
-        }
     }
-
-
 
 }

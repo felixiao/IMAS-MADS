@@ -3,6 +3,7 @@ package urv.imas;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.TickerBehaviour;
 import jade.core.behaviours.WakerBehaviour;
 import jade.domain.DFService;
@@ -10,13 +11,18 @@ import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
 import jade.util.Logger;
+import weka.core.Instances;
+
+import java.io.IOException;
 
 public class InformationAgent extends Agent {
     /*****************************************************************
      Common code for all agents
      *****************************************************************/
     private final String myType = "InformationAgent";
+    private InfoHandler info;
     private String getInfo(){
         return String.format("[%s - %s]:\n",myType,getLocalName());
     }
@@ -39,6 +45,54 @@ public class InformationAgent extends Agent {
             }
         return result;
     }
+    protected class SendMsgBehaviour extends OneShotBehaviour {
+        String m_content;
+        int m_type;
+        String m_to;
+        Instances m_data;
+        public SendMsgBehaviour(String Content,int ACLMessageType,String to){
+            m_content= Content;
+            m_type = ACLMessageType;
+            m_to = to;
+        }
+        public SendMsgBehaviour(Instances data,String Content,int ACLMessageType,String to){
+            m_content= Content;
+            m_data=data;
+            m_type = ACLMessageType;
+            m_to = to;
+        }
+        @Override
+        public void action() {
+            ACLMessage msg = new ACLMessage(m_type);
+            if(m_data!=null) {
+                try {
+                    msg.setContentObject(m_data);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            msg.setContent(m_content);
+            AID msgTo = SearchAgent(m_to)[0].getName();
+            msg.addReceiver(msgTo);
+            send(msg);
+            myLogger.log(Logger.INFO,getInfo()+" Send ["+msg.getPerformative()+"] '"+m_content+"' to ("+msgTo.getLocalName()+")");
+        }
+    }
+
+    protected class AutoReplyBehaviour extends OneShotBehaviour{
+        ACLMessage m_reply;
+        public AutoReplyBehaviour(ACLMessage msg){
+            m_reply = msg.createReply();
+            m_reply.setContent(msg.getContent()+"-Received!");
+            m_reply.setPerformative(ACLMessage.INFORM);
+            myLogger.log(Logger.INFO, getInfo()+ " Received ["+msg.getPerformative()+"] '"+msg.getContent()+"' from (" + msg.getSender().getLocalName()+")");
+        }
+        @Override
+        public void action() {
+            send(m_reply);
+            myLogger.log(Logger.INFO, getInfo() + " Send [" + m_reply.getPerformative() + "] '" + m_reply.getContent() + "' to (" + m_reply.getSender().getLocalName() + ")");
+        }
+    }
     protected void setup() {
 //        super.setup();
         myLogger.log(Logger.INFO,getInfo()+" Start!");
@@ -52,7 +106,8 @@ public class InformationAgent extends Agent {
         dfd.addServices(sd);
         try {
             DFService.register(this,dfd);
-            addBehaviour(new WaitAndReplyBehaviour());
+            addBehaviour(new WaitAndReply());
+
         } catch (FIPAException e) {
             myLogger.log(Logger.SEVERE, getInfo()+" - Cannot register with DF", e);
             doDelete();
@@ -61,43 +116,37 @@ public class InformationAgent extends Agent {
     /*****************************************************************
      Agent specific codes
      *****************************************************************/
-    private class WaitAndReplyBehaviour extends CyclicBehaviour {
+    private class WaitAndReply extends CyclicBehaviour {
+        MessageTemplate filterMsg_Inform = null;
+        MessageTemplate filterMsg_Request = null;
+        public WaitAndReply(){
+            filterMsg_Request = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.REQUEST),
+                    MessageTemplate.MatchLanguage("English"));
+            filterMsg_Inform = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.INFORM),
+                    MessageTemplate.MatchLanguage("English"));
+        }
         @Override
         public void action() {
-            ACLMessage msg = myAgent.receive();
-            if(msg != null) {
-                ACLMessage reply = msg.createReply();
-                if(msg.getPerformative()== ACLMessage.INFORM){
-                    String content = msg.getContent();
-                    if (content != null){
-                        myLogger.log(Logger.INFO, getInfo() + " - Received ["+msg.getPerformative()+"] '"+content+"' from " + msg.getSender().getLocalName());
-                        switch (content){
-                            case "GetReady":
-                                reply.setPerformative(ACLMessage.INFORM);
-                                reply.setContent("GetReady-Received");
-                                // wait for 1 sec to send msg to info agent and classifier agent
-                                addBehaviour(new WakerBehaviour(myAgent,1000) {
-                                    protected void handleElapsedTimeout() {
-                                        System.out.println("HandleElapsedTimeout !");
-                                    }
-                                    @Override
-                                    protected void onWake() {
-                                        ACLMessage _msg = new ACLMessage(ACLMessage.INFORM);
-                                        _msg.setContent("GetReady");
-                                        AID msgTo = SearchAgent("ClassifierAgent")[0].getName();
-                                        _msg.addReceiver(msgTo);
-                                        send(_msg);
-                                        myLogger.log(Logger.INFO,getInfo()+" Send ["+_msg.getPerformative()+"] 'GetReady' to ("+msgTo.getLocalName()+")");
-                                    }
-                                });
-                                break;
-                        }
-                        if(reply.getContent()!=null) {
-                            send(reply);
-                            myLogger.log(Logger.INFO, getInfo() + " Send [" + reply.getPerformative() + "] '" + reply.getContent() + "' to (" + reply.getSender().getLocalName() + ")");
-                        }
+            ACLMessage msgInform = myAgent.receive(filterMsg_Inform);
+            ACLMessage msgRequest = myAgent.receive(filterMsg_Request);
+            if(msgRequest != null) {
+                addBehaviour(new AutoReplyBehaviour(msgRequest));
+                String content = msgRequest.getContent();
+                if (content != null) {
+                    switch (content) {
+                        case "GetReady":
+                            info.LoadData("audit_risk.arff");
+                            addBehaviour(new SendMsgBehaviour("ImReady",ACLMessage.INFORM,"ClassifierAgent"));
+                            break;
+                        case "Train":
+                            Instances data = info.GetDataInstances(300);
+                            addBehaviour(new SendMsgBehaviour(data,"Train",ACLMessage.REQUEST,"ClassifierAgent"));
+                            break;
                     }
                 }
+            }
+            if(msgInform!=null){
+                myLogger.log(Logger.INFO, getInfo()+ " Received ["+msgInform.getPerformative()+"] '"+msgInform.getContent()+"' from (" + msgInform.getSender().getLocalName()+")");
             }
         }
     }
