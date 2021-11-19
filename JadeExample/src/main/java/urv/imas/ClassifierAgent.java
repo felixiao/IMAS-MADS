@@ -1,164 +1,79 @@
 package urv.imas;
 
-import jade.core.AID;
-import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
-import jade.core.behaviours.OneShotBehaviour;
-import jade.core.behaviours.TickerBehaviour;
-import jade.core.behaviours.WakerBehaviour;
-import jade.domain.DFService;
-import jade.domain.FIPAAgentManagement.DFAgentDescription;
-import jade.domain.FIPAAgentManagement.ServiceDescription;
-import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
-import jade.util.Logger;
-import weka.core.Utils;
 import weka.core.Instances;
-import weka.core.Instance;
-import weka.core.converters.ConverterUtils.DataSource;
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
 
-public class ClassifierAgent extends Agent {
-    /*****************************************************************
-     Common code for all agents
-     *****************************************************************/
-    private final String myType = "ClassifierAgent";
+public class ClassifierAgent extends MyAgent {
     private ClassifyHandler classifier;
-    private String getInfo(){
-        return String.format("[%s - %s]:\n",myType,getLocalName());
-    }
-    private final Logger myLogger = Logger.getMyLogger(getClass().getName());
-    protected DFAgentDescription[] SearchAgent(String type) {
-        DFAgentDescription dfd = new DFAgentDescription();
-        ServiceDescription sd  = new ServiceDescription();
-        sd.setType( type );
-        dfd.addServices(sd);
-
-        DFAgentDescription[] result = new DFAgentDescription[0];
-        try {
-            result = DFService.search(this, dfd);
-        } catch (FIPAException e) {
-            e.printStackTrace();
-        }
-        if (result.length>0)
-            for (DFAgentDescription re: result) {
-                System.out.println("Searched Results: " + re.getName().getLocalName() );
-            }
-        return result;
-    }
-    protected class SendMsgBehaviour extends OneShotBehaviour {
-        String m_content;
-        int m_type;
-        String m_to;
-        Instances m_data;
-        public SendMsgBehaviour(String Content,int ACLMessageType,String to){
-            m_content= Content;
-            m_type = ACLMessageType;
-            m_to = to;
-        }
-        public SendMsgBehaviour(Instances data,String Content,int ACLMessageType,String to){
-            m_content= Content;
-            m_data=data;
-            m_type = ACLMessageType;
-            m_to = to;
-        }
-        @Override
-        public void action() {
-            ACLMessage msg = new ACLMessage(m_type);
-            if(m_data!=null) {
-                try {
-                    msg.setContentObject(m_data);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            msg.setContent(m_content);
-            AID msgTo = SearchAgent(m_to)[0].getName();
-            msg.addReceiver(msgTo);
-            send(msg);
-            myLogger.log(Logger.INFO,getInfo()+" Send ["+msg.getPerformative()+"] '"+m_content+"' to ("+msgTo.getLocalName()+")");
-        }
-    }
-    protected class AutoReplyBehaviour extends OneShotBehaviour{
-        ACLMessage m_reply;
-        public AutoReplyBehaviour(ACLMessage msg){
-            m_reply = msg.createReply();
-            m_reply.setContent(msg.getContent()+"-Received!");
-            m_reply.setPerformative(ACLMessage.INFORM);
-            myLogger.log(Logger.INFO, getInfo()+ " Received ["+msg.getPerformative()+"] '"+msg.getContent()+"' from (" + msg.getSender().getLocalName()+")");
-        }
-        @Override
-        public void action() {
-            send(m_reply);
-            myLogger.log(Logger.INFO, getInfo() + " Send [" + m_reply.getPerformative() + "] '" + m_reply.getContent() + "' to (" + m_reply.getSender().getLocalName() + ")");
-        }
-    }
     protected void setup() {
-//        super.setup();
-        myLogger.log(Logger.INFO,getInfo()+" Start!");
-        // Registration with the DF
-        DFAgentDescription dfd = new DFAgentDescription();
-        ServiceDescription sd = new ServiceDescription();
-        sd.setType(myType);
-        sd.setName(getName());
-        sd.setOwnership("TILAB");
-        dfd.setName(getAID());
-        dfd.addServices(sd);
-        try {
-            DFService.register(this,dfd);
-            addBehaviour(new WaitAndReply());
-            classifier=new ClassifyHandler();
-        } catch (FIPAException e) {
-            myLogger.log(Logger.SEVERE, getInfo()+" - Cannot register with DF", e);
-            doDelete();
-        }
+        super.myType="ClassifierAgent";
+        classifier=new ClassifyHandler();
+        super.setup();
+        addBehaviour(new WaitAndReply());
     }
-    /*****************************************************************
-     Agent specific codes
-     *****************************************************************/
     private class WaitAndReply extends CyclicBehaviour {
         MessageTemplate filterMsg_Inform = null;
         MessageTemplate filterMsg_Request = null;
         public WaitAndReply(){
-            filterMsg_Request = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.REQUEST),
-                    MessageTemplate.MatchLanguage("English"));
-            filterMsg_Inform = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.INFORM),
-                    MessageTemplate.MatchLanguage("English"));
+            filterMsg_Request = MessageTemplate.MatchPerformative(ACLMessage.REQUEST);
+            filterMsg_Inform = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
         }
         @Override
         public void action() {
             ACLMessage msgInform = myAgent.receive(filterMsg_Inform);
             ACLMessage msgRequest = myAgent.receive(filterMsg_Request);
+//            ACLMessage msgRequestInstances = myAgent.receive(MessageTemplate.and(filterMsg_Request,MessageTemplate.MatchProtocol(Instances)));
+//            if(msgRequestInstances!=null){
+//                System.out.println("Receive MsgRequestInstances");
+//                addBehaviour(new AutoReplyBehaviour(msgRequestInstances));
+//                Instances data = null;
+//                try {
+//                    data = (Instances)msgRequestInstances.getContentObject();
+//                    System.out.println("Received Data!!!!!!!!! Num of Instance: "+data.numInstances()+" Ready to Train!");
+//                } catch (UnreadableException e) {
+//                    e.printStackTrace();
+//                }
+//            }
             if(msgRequest != null) {
+                System.out.println("Receive MsgRequest");
                 addBehaviour(new AutoReplyBehaviour(msgRequest));
-                String content = msgRequest.getContent();
-                if (content != null) {
-                    switch (content) {
-                        case "Train":
-                            try {
-                                Instances data = (Instances) msgRequest.getContentObject();
-                                System.out.println("Received Data!!!!!!!!! Num of Instance: "+data.numInstances()+" Ready to Train!");
-                            } catch (UnreadableException e) {
-                                e.printStackTrace();
-                            }
-                            break;
-                        case "GetReady":
-                            addBehaviour(new SendMsgBehaviour("GetReady",ACLMessage.REQUEST,"ReasoningAgent"));
-                            break;
+                if(msgRequest.getProtocol()==Message){
+                    String content = msgRequest.getContent();
+                    if (content != null) {
+                        switch (content) {
+                            case "Train":
+                                try {
+                                    Instances data = (Instances) msgRequest.getContentObject();
+                                    System.out.println("Received Data!!!!!!!!! Num of Instance: "+data.numInstances()+" Ready to Train!");
+                                } catch (UnreadableException e) {
+                                    e.printStackTrace();
+                                }
+                                break;
+                            case "GetReady":
+                                addBehaviour(new SendMsgBehaviour("GetReady",Message,ACLMessage.REQUEST,"ReasoningAgent"));
+                                break;
+                        }
+                    }
+                }
+                else if(msgRequest.getProtocol()==Instances){
+                    Instances data = null;
+                    try {
+                        data = (Instances) msgRequest.getContentObject();
+                        System.out.println("Received Data!!!!!!!!! Num of Instance: "+data.numInstances()+" Ready to Train!");
+                    } catch (UnreadableException e) {
+                        e.printStackTrace();
                     }
                 }
             }
             if(msgInform!=null) {
-                addBehaviour(new AutoReplyBehaviour(msgInform));
                 String content = msgInform.getContent();
                 if (content != null) {
                     switch (content) {
                         case "ImReady":
-                            addBehaviour(new SendMsgBehaviour(content,ACLMessage.INFORM,"ReasoningAgent"));
+                            addBehaviour(new SendMsgBehaviour(content,Message,ACLMessage.INFORM,"ReasoningAgent"));
                             break;
                     }
                 }
