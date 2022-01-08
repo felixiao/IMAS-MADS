@@ -63,7 +63,7 @@
                             <arguments>
                                 <argument>-gui</argument>
                                 <argument>-agents</argument>
-                                <argument>user1:urv.imas.UserAgent;broker1:urv.imas.BrokerAgent;info1:urv.imas.InformationAgent;reason1:urv.imas.ReasoningAgent;classifier1:urv.imas.ClassifierAgent</argument>
+                                <argument>user1:urv.imas.UserAgent;broker1:urv.imas.BrokerAgent;info1:urv.imas.InformationAgent;reason1:urv.imas.ReasoningAgent;</argument>
                             </arguments>
                         </configuration>
                     </plugin>

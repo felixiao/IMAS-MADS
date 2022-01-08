@@ -38,6 +38,10 @@ public class UserAgent extends MyAgent {
                             myAgent.addBehaviour(new ShowBehaviour());
                             myAgent.addBehaviour(new SendMsgBehaviour("Train",Message,ACLMessage.REQUEST,"BrokerAgent"));
                             break;
+                        case "TrainedSuccess":
+                            myLogger.log(Logger.INFO,"System is Trained! Ready to Test");
+                            myAgent.addBehaviour(new SendMsgBehaviour("Test",Message,ACLMessage.REQUEST,"BrokerAgent"));
+                            break;
                     }
                 }
             }

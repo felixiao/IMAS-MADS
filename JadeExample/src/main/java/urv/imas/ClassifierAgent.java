@@ -4,14 +4,21 @@ import jade.core.behaviours.CyclicBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
+import weka.core.Attribute;
 import weka.core.Instances;
+import weka.classifiers.trees.J48;
+import weka.core.Utils;
+
+import java.util.Enumeration;
 
 public class ClassifierAgent extends MyAgent {
-    private ClassifyHandler classifier;
+    public ClassifyHandler classifier;
+
     protected void setup() {
         super.myType="ClassifierAgent";
-        classifier=new ClassifyHandler();
+
         super.setup();
+        this.classifier=new ClassifyHandler(super.getLocalName());
         addBehaviour(new WaitAndReply());
     }
     private class WaitAndReply extends CyclicBehaviour {
@@ -38,31 +45,45 @@ public class ClassifierAgent extends MyAgent {
 //                }
 //            }
             if(msgRequest != null) {
-                System.out.println("Receive MsgRequest");
                 addBehaviour(new AutoReplyBehaviour(msgRequest));
                 if(msgRequest.getProtocol()==Message){
                     String content = msgRequest.getContent();
                     if (content != null) {
                         switch (content) {
-                            case "Train":
-                                try {
-                                    Instances data = (Instances) msgRequest.getContentObject();
-                                    System.out.println("Received Data!!!!!!!!! Num of Instance: "+data.numInstances()+" Ready to Train!");
-                                } catch (UnreadableException e) {
-                                    e.printStackTrace();
-                                }
-                                break;
                             case "GetReady":
                                 addBehaviour(new SendMsgBehaviour("GetReady",Message,ACLMessage.REQUEST,"ReasoningAgent"));
                                 break;
                         }
                     }
                 }
-                else if(msgRequest.getProtocol()==Instances){
-                    Instances data = null;
+                else if(msgRequest.getProtocol()==Train) {
                     try {
-                        data = (Instances) msgRequest.getContentObject();
-                        System.out.println("Received Data!!!!!!!!! Num of Instance: "+data.numInstances()+" Ready to Train!");
+                        Instances data = (Instances) msgRequest.getContentObject();
+                        classifier.LoadData(data);
+                        System.out.println("Received Data!!!!!!!!! Num of Instance: " + data.numInstances() + " Ready to Train!");
+                        boolean success = classifier.Train();
+                        if (success) addBehaviour(new SendMsgBehaviour("TrainedSuccess", Message, ACLMessage.INFORM, "ReasoningAgent"));
+                        else System.out.println("Not Match!");
+                    } catch (UnreadableException e) {
+                        e.printStackTrace();
+                    }
+                }
+                else if(msgRequest.getProtocol()==PreTest) {
+                    try {
+                        int attrs = (int) msgRequest.getContentObject();
+                        boolean fit = classifier.Fit(attrs);
+                        if(fit)
+                            addBehaviour(new SendMsgBehaviour("TestReady",Message,ACLMessage.REQUEST,"InformationAgent"));
+                    } catch (UnreadableException e) {
+                        e.printStackTrace();
+                    }
+                }
+                else if(msgRequest.getProtocol()==Test) {
+                    try {
+                        Instances testData = (Instances) msgRequest.getContentObject();
+                        int[] predictResult = classifier.Predict(testData);
+                        if(predictResult!=null)
+                            addBehaviour(new SendMsgBehaviour(predictResult,"TestSuccess",Result,ACLMessage.REQUEST,"ReasoningAgent"));
                     } catch (UnreadableException e) {
                         e.printStackTrace();
                     }

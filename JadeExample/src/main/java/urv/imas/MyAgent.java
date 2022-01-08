@@ -15,7 +15,10 @@ import java.io.IOException;
 
 public class MyAgent extends Agent {
     public final static String Message ="Message";
-    public final static String Instances ="Instances";
+    public final static String Train ="Train";
+    public final static String PreTest ="PreTest";
+    public final static String Test ="Test";
+    public final static String Result = "Result";
 
     public String GetType(int type){
         switch (type){
@@ -69,6 +72,7 @@ public class MyAgent extends Agent {
         return "TYPE";
     }
     protected String myType = "MyAgent";
+
     protected String getInfo(){
         return String.format("[%s - %s]:",myType,getLocalName());
     }
@@ -95,20 +99,77 @@ public class MyAgent extends Agent {
         String m_content;
         int m_type;
         String m_to;
+        boolean m_toAll=false;
+        int m_index;
         Instances m_data;
+        int m_attrs;
+        int[] m_results=null;
         String m_protocol;
-        public SendMsgBehaviour(String Content,String protocol, int ACLMessageType,String to){
+        public SendMsgBehaviour(String Content,String protocol, int ACLMessageType,String type){
             m_content= Content;
             m_type = ACLMessageType;
-            m_to = to;
+            m_to = type;
             m_protocol=protocol;
+            m_toAll = true;
         }
-        public SendMsgBehaviour(Instances data,String Content,String protocol, int ACLMessageType, String to){
+        public SendMsgBehaviour(String Content,String protocol, int ACLMessageType,String type, int index){
             m_content= Content;
             m_type = ACLMessageType;
-            m_to = to;
+            m_to = type;
+            m_protocol=protocol;
+            m_index = index;
+            m_toAll = false;
+        }
+        public SendMsgBehaviour(Instances data,String Content,String protocol, int ACLMessageType, String type){
+            m_content= Content;
+            m_type = ACLMessageType;
+            m_to = type;
             m_data=data;
             m_protocol=protocol;
+            m_toAll = true;
+        }
+        public SendMsgBehaviour(Instances data,String Content,String protocol, int ACLMessageType, String type, int index){
+            m_content= Content;
+            m_type = ACLMessageType;
+            m_to = type;
+            m_data=data;
+            m_protocol=protocol;
+            m_index = index;
+            m_toAll = false;
+        }
+        public SendMsgBehaviour(int data,String Content,String protocol, int ACLMessageType, String type){
+            m_content= Content;
+            m_type = ACLMessageType;
+            m_to = type;
+            m_attrs=data;
+            m_protocol=protocol;
+            m_toAll = true;
+        }
+        public SendMsgBehaviour(int data,String Content,String protocol, int ACLMessageType, String type, int index){
+            m_content= Content;
+            m_type = ACLMessageType;
+            m_to = type;
+            m_attrs=data;
+            m_protocol=protocol;
+            m_index = index;
+            m_toAll = false;
+        }
+        public SendMsgBehaviour(int[] data, String Content,String protocol, int ACLMessageType, String type){
+            m_content= Content;
+            m_type = ACLMessageType;
+            m_to = type;
+            m_results=data;
+            m_protocol=protocol;
+            m_toAll = true;
+        }
+        public SendMsgBehaviour(int[] data,String Content,String protocol, int ACLMessageType, String type, int index){
+            m_content= Content;
+            m_type = ACLMessageType;
+            m_to = type;
+            m_results=data;
+            m_protocol=protocol;
+            m_index = index;
+            m_toAll = false;
         }
         @Override
         public void action() {
@@ -122,10 +183,34 @@ public class MyAgent extends Agent {
                     e.printStackTrace();
                 }
             }
-            AID msgTo = SearchAgent(m_to)[0].getName();
-            msg.addReceiver(msgTo);
-            send(msg);
-            myLogger.log(Logger.INFO,getInfo()+" Send >>>>>\n["+GetType(msg.getPerformative())+"] \t'"+m_content+"' >>>>> ("+msgTo.getLocalName()+")");
+            if (m_attrs!=0){
+                try {
+                    msg.setContentObject(m_attrs);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            if(m_results!=null){
+                try {
+                    msg.setContentObject(m_results);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            DFAgentDescription[] agentsearched = SearchAgent(m_to);
+            if(m_toAll) {
+                for (DFAgentDescription ag : agentsearched) {
+                    AID msgTo = ag.getName();
+                    msg.addReceiver(msgTo);
+                    send(msg);
+                    myLogger.log(Logger.INFO, getInfo() + " Send ---->\n\t[" + GetType(msg.getPerformative()) + "] \t'" + m_content + "' >>>>> (" + msgTo.getLocalName() + ")");
+                }
+            }else{
+                AID msgTo = agentsearched[m_index].getName();
+                msg.addReceiver(msgTo);
+                send(msg);
+                myLogger.log(Logger.INFO, getInfo() + " Send ---->\n\t[" + GetType(msg.getPerformative()) + "] \t'" + m_content + "' >>>>> (" + msgTo.getLocalName() + ")");
+            }
         }
     }
     protected class AutoReplyBehaviour extends OneShotBehaviour{
@@ -135,19 +220,18 @@ public class MyAgent extends Agent {
             m_reply.setPerformative(ACLMessage.INFORM);
             if(m_reply.getProtocol()==MyAgent.Message){
                 m_reply.setContent(msg.getContent()+"-Received!");
-                myLogger.log(Logger.INFO, getInfo()+ " Received <<<<<\n["+GetType(msg.getPerformative())+"] \t'"+msg.getContent()+"' <<<<< (" + msg.getSender().getLocalName()+")");
-            }else if(m_reply.getProtocol()==MyAgent.Instances){
+                myLogger.log(Logger.INFO, getInfo()+ " Received <----\n\t["+GetType(msg.getPerformative())+"] \t'"+msg.getContent()+"' <<<<< (" + msg.getSender().getLocalName()+")");
+            }else if(m_reply.getProtocol()==MyAgent.Train || m_reply.getProtocol()==MyAgent.PreTest ||m_reply.getProtocol()==MyAgent.Test){
                 m_reply.setContent("Data-Received!");
-                myLogger.log(Logger.INFO, getInfo() + " Received <<<<<\n[" + GetType(msg.getPerformative()) + "] \tData <<<<< (" + msg.getSender().getLocalName() + ")");
+                myLogger.log(Logger.INFO, getInfo() + " Received <----\n\t[" + GetType(msg.getPerformative()) + "] \tData <<<<< (" + msg.getSender().getLocalName() + ")");
             }
         }
         @Override
         public void action() {
-            send(m_reply);
-            myLogger.log(Logger.INFO, getInfo() + " Send >>>>>\n[" + GetType(m_reply.getPerformative()) + "] \t'" + m_reply.getContent() + "' >>>>> (" + m_reply.getSender().getLocalName() + ")");
+//            send(m_reply);
+//            myLogger.log(Logger.INFO, getInfo() + " Send >>>>>\n[" + GetType(m_reply.getPerformative()) + "] \t'" + m_reply.getContent() + "' >>>>> (" + m_reply.getSender().getLocalName() + ")");
         }
     }
-
 
     @Override
     protected void setup() {
