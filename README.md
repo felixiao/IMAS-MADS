@@ -29,9 +29,9 @@ Before running the system, you can change the settings in the configure.xml. The
 |votingthreshold   | the voting result is normalized in range [0,1], the final prediction result is determined by the voting threshold which ![image info](./equaltation.png)
 
 
-Usage:
+## 2. Usage
 
-1. Run configuration
+### 1.Run configuration
    1. In Run->Edit configuration-> + for add new configuration -> Select Maven
    2. In Parameters-> Command Line -> add following:
       1. exec:java -f pom.xml
@@ -39,8 +39,8 @@ Usage:
       1. Test
    4. Run Test Configuration, the GUI Agent system will run.
 
-If set the autostart to true, then skip step 2
-2. After running the GUI Agent system, to start the agents:
+#### If set the autostart to true, then skip step 2
+### 2. After running the GUI Agent system, to start the agents:
    1. Select user1 agent on the left side window
    2. Right-click the user1 agent
    3. Select Send Message
@@ -48,8 +48,8 @@ If set the autostart to true, then skip step 2
    5. Type "Start" in Content box
    6. Click 'Ok' to send message
 
-If set the autotest to true, you can skip setp 3 or you can manually test the system by following step 3.
-3. After system is prepared and trained, it is time to test:
+#### If set the autotest to true, you can skip setp 3 or you can manually test the system by following step 3.
+### 3. After system is prepared and trained, it is time to test:
    1. Select user1 agent on the left side window
    2. Right-click the user1 agent
    3. Select Send Message
