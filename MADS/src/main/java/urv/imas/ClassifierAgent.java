@@ -1,9 +1,14 @@
 package urv.imas;
 
 import jade.core.behaviours.CyclicBehaviour;
+import jade.domain.FIPAAgentManagement.FailureException;
+import jade.domain.FIPAAgentManagement.NotUnderstoodException;
+import jade.domain.FIPAAgentManagement.RefuseException;
+import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
+import jade.proto.ContractNetResponder;
 import weka.core.Instances;
 
 public class ClassifierAgent extends MyAgent {
@@ -13,8 +18,39 @@ public class ClassifierAgent extends MyAgent {
         super.myType="ClassifierAgent";
 
         super.setup();
-        this.classifier=new ClassifyHandler(super.getLocalName(),(int)getArguments()[0],(int)getArguments()[1],(int)getArguments()[2],(long)getArguments()[3]);
-        addBehaviour(new WaitAndReply());
+        Object[] args = getArguments();
+        if(args!=null) {
+            this.classifier = new ClassifyHandler(super.getLocalName(), (int) args[0], (int) args[1], (int) args[2], (long) args[3]);
+            addBehaviour(new WaitAndReply());
+        }
+        MessageTemplate template = MessageTemplate.and(
+                MessageTemplate.MatchProtocol(FIPANames.InteractionProtocol.FIPA_CONTRACT_NET),
+                MessageTemplate.MatchPerformative(ACLMessage.CFP) );
+        addBehaviour(new ContractNetResponder(this,template){
+            @Override
+            protected ACLMessage handleCfp(ACLMessage cfp) throws RefuseException, FailureException, NotUnderstoodException {
+                System.out.println("Agent "+getLocalName()+": CFP received from "+cfp.getSender().getName()+". Action is "+cfp.getContent());
+                boolean proposal = false;
+                try {
+                    proposal = classifier.Fit((int)cfp.getContentObject());
+                } catch (UnreadableException e) {
+                    e.printStackTrace();
+                }
+                if (proposal) {
+                    // We provide a proposal
+                    System.out.println("Agent "+getLocalName()+": Proposing "+proposal);
+                    ACLMessage propose = cfp.createReply();
+                    propose.setPerformative(ACLMessage.PROPOSE);
+                    propose.setContent(String.valueOf(proposal));
+                    return propose;
+                }
+                else {
+                    // We refuse to provide a proposal
+                    System.out.println("Agent "+getLocalName()+": Refuse");
+                    throw new RefuseException("evaluation-failed");
+                }
+            }
+        });
     }
     private class WaitAndReply extends CyclicBehaviour {
         MessageTemplate filterMsg_Inform = null;

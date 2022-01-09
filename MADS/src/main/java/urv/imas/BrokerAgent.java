@@ -34,6 +34,7 @@ public class BrokerAgent extends MyAgent {
         }
         addBehaviour(new WaitAndReply());
     }
+
     private class WaitAndReply extends CyclicBehaviour{
         MessageTemplate filterMsg_Inform = null;
         MessageTemplate filterMsg_Request = null;
@@ -60,6 +61,7 @@ public class BrokerAgent extends MyAgent {
                             addBehaviour(new SendMsgBehaviour("Train",Message,ACLMessage.REQUEST,"InformationAgent"));
                             break;
                         case "Test":
+
                             addBehaviour(new SendMsgBehaviour("Test",Message,ACLMessage.REQUEST,"InformationAgent"));
                             break;
                     }
