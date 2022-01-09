@@ -1,17 +1,11 @@
 package urv.imas;
-// 300 train -> 225 train 75 validation -> 6 / 24 attrs
-// divide train and validate set
-// set attributes
-// train
-// evaluation
+
 
 import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
 import weka.classifiers.trees.J48;
 import weka.core.Instance;
 import weka.core.Instances;
-import weka.filters.supervised.instance.*;
-import weka.filters.Filter;
 import weka.core.Attribute;
 
 import java.util.*;
@@ -25,10 +19,14 @@ public class ClassifyHandler {
     private int m_attrInd = 0;// reversed order, right = 23 (24th attribute)
     Classifier m_cls = new J48();
     private String m_id;
-
-    public ClassifyHandler(String name,int numberofAttrs){
+    private int m_numofTrainData;
+    private int m_numofValData;
+    public ClassifyHandler(String name,int numberofAttrs,int numTrain,int numVal,long seed){
         m_id = name;
-        m_attrInd = 0;
+        m_attrInd = numberofAttrs;
+        m_numofTrainData = numTrain;
+        m_numofValData   = numVal;
+        m_seed          = seed;
         List<Integer> intList = Arrays.asList(23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0);
         Collections.shuffle(intList);
         for(int i= 0;i<numberofAttrs;i++){
@@ -63,8 +61,8 @@ public class ClassifyHandler {
         System.out.println(m_id+" Remain Attributes Data Summary\n"+data.toSummaryString());
 
         data.randomize(data.getRandomNumberGenerator(m_seed));
-        m_dataTrain      = new Instances(data,0,225);
-        m_dataValidation = new Instances(data,225,75);
+        m_dataTrain      = new Instances(data,0,m_numofTrainData);
+        m_dataValidation = new Instances(data,m_numofTrainData,m_numofValData);
         System.out.println("Train Size = "+ m_dataTrain.numInstances()+"\nVal Size = "+ m_dataValidation.numInstances());
 
     }

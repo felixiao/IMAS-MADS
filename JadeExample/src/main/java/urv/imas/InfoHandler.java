@@ -2,21 +2,26 @@ package urv.imas;
 import weka.core.Attribute;
 import weka.core.Instances;
 import weka.core.converters.ConverterUtils;
-import weka.filters.Filter;
-import weka.filters.supervised.instance.Resample;
-import weka.filters.supervised.instance.SpreadSubsample;
-
-import java.util.Enumeration;
 
 public class InfoHandler {
     private Instances m_data;
     private long m_seed=1;
+    private int m_numOfTrain;
+    private int m_numOfVal;
+    private int m_numOfTest;
+    private int m_numOfEval;
     private Instances m_trainData;
     private Instances m_testData;
-    private int m_attrInd = 0b101110111111101110111011;
-    public int GetTestAttrs(){return m_attrInd;}
+    private int m_attrTest = 0b101110111111101110111011;
+    public int GetTestAttrs(){return m_attrTest;}
 
-    public InfoHandler(){
+    public InfoHandler(int numOfTrain,int numOfVal,int numOfTest,int numOfEval,int attrTest,long seed){
+        m_seed = seed;
+        m_numOfTrain= numOfTrain;
+        m_numOfVal  = numOfVal;
+        m_numOfTest = numOfTest;
+        m_numOfEval = numOfEval;
+        m_attrTest  = attrTest;
         System.out.println("Create InfoHandler!");
     }
 
@@ -30,10 +35,10 @@ public class InfoHandler {
                 m_data.setClassIndex(m_data.numAttributes() - 1);
             System.out.println("Num Instances: "+m_data.numInstances()+"\nNum Class: "+m_data.numClasses()+"\nNum Attrs: "+m_data.numAttributes());
 
-            m_testData = new Instances(m_data,0,50);
+            m_testData = new Instances(m_data,0,m_numOfTest);
             m_testData.randomize(m_testData.getRandomNumberGenerator(m_seed));
 
-            m_trainData= new Instances(m_data,50,m_data.numInstances()-50);
+            m_trainData= new Instances(m_data,m_numOfTest,m_data.numInstances()-m_numOfTest);
 
             System.out.println("Train Size = "+ m_trainData.numInstances()+"\nTest Size = "+ m_testData.numInstances());
             return true;
@@ -42,15 +47,15 @@ public class InfoHandler {
             return false;
         }
     }
-    public Instances GetTrainData(int size){
+    public Instances GetTrainData(){
         m_trainData.randomize(m_trainData.getRandomNumberGenerator(m_seed++));
-        Instances d = new Instances(m_trainData,0,size);
+        Instances d = new Instances(m_trainData,0,m_numOfTrain+m_numOfVal);
         System.out.println("Random Select: "+d.numInstances()+" Train Data\n");
         return d;
     }
-    public Instances GetTestData(int size){
+    public Instances GetTestData(){
         m_testData.randomize(m_testData.getRandomNumberGenerator(m_seed++));
-        Instances d = new Instances(m_testData,0,size);
+        Instances d = new Instances(m_testData,0,m_numOfEval);
         System.out.println("Random Select: "+d.numInstances()+" Train Data\n");
         return d;
     }

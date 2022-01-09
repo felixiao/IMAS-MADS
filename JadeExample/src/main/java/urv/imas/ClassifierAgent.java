@@ -4,12 +4,7 @@ import jade.core.behaviours.CyclicBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
-import weka.core.Attribute;
 import weka.core.Instances;
-import weka.classifiers.trees.J48;
-import weka.core.Utils;
-
-import java.util.Enumeration;
 
 public class ClassifierAgent extends MyAgent {
     public ClassifyHandler classifier;
@@ -18,7 +13,7 @@ public class ClassifierAgent extends MyAgent {
         super.myType="ClassifierAgent";
 
         super.setup();
-        this.classifier=new ClassifyHandler(super.getLocalName(),(int)getArguments()[0]);
+        this.classifier=new ClassifyHandler(super.getLocalName(),(int)getArguments()[0],(int)getArguments()[1],(int)getArguments()[2],(long)getArguments()[3]);
         addBehaviour(new WaitAndReply());
     }
     private class WaitAndReply extends CyclicBehaviour {

@@ -6,31 +6,26 @@ import jade.lang.acl.MessageTemplate;
 import jade.util.Logger;
 import jade.wrapper.AgentController;
 import jade.wrapper.StaleProxyException;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import java.io.File;
-import java.io.IOException;
 
 public class BrokerAgent extends MyAgent {
     private String datapath;
     private int numOfClassifier = 10;
     private int numOfAttributes = 6;
+    private int numOfTrain =225;
+    private int numOfVal   =75;
+    private long seed = 1;
     protected void setup() {
         super.myType="BrokerAgent";
         super.setup();
         datapath = ParseXML("configure.xml","path");
         numOfClassifier = Integer.parseInt(ParseXML("configure.xml","numberofclassifier"));
         numOfAttributes = Integer.parseInt(ParseXML("configure.xml","numberofattributes"));
-
+        numOfTrain = Integer.parseInt(ParseXML("configure.xml","numberoftrain"));
+        numOfVal   = Integer.parseInt(ParseXML("configure.xml","numberofval"));
+        seed = Long.parseLong(ParseXML("configure.xml","randomseed"));
         for(int i =0; i<numOfClassifier;i++) {
             try {
-                AgentController classfiers = getContainerController().createNewAgent("classifier"+i,"urv.imas.ClassifierAgent",new Object[]{numOfAttributes});
+                AgentController classfiers = getContainerController().createNewAgent("classifier"+i,"urv.imas.ClassifierAgent",new Object[]{numOfAttributes,numOfTrain,numOfVal,seed});
 
                 classfiers.start();
             } catch (StaleProxyException e) {

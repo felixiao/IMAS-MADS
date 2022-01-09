@@ -7,6 +7,8 @@
     <numberofval>75</numberofval>
     <numberoftest>50</numberoftest>
     <numberofeval>15</numberofeval>
+    <randomseed>1</randomseed>
+    <testattrs>101110111111101110111011</testattrs>
     <autotest>true</autotest>
     <autostart>true</autostart>
     <!--

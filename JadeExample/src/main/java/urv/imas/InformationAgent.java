@@ -13,7 +13,14 @@ public class InformationAgent extends MyAgent {
     InfoHandler info;
     protected void setup() {
         super.myType="InformationAgent";
-        info=new InfoHandler();
+        int numOftrain= Integer.parseInt(ParseXML("configure.xml","numberoftrain"));
+        int numOfval  = Integer.parseInt(ParseXML("configure.xml","numberofval"));
+        int numOftest = Integer.parseInt(ParseXML("configure.xml","numberoftest"));
+        int numOfeval = Integer.parseInt(ParseXML("configure.xml","numberofeval"));
+        int testAttr  = Integer.parseInt(ParseXML("configure.xml","testattrs"),2);
+        System.out.println("TestAttr "+testAttr);
+        long seed     = Long.parseLong(ParseXML("configure.xml","randomseed"));
+        info=new InfoHandler(numOftrain,numOfval,numOftest,numOfeval,testAttr,seed);
         super.setup();
         addBehaviour(new WaitAndReply());
     }
@@ -45,7 +52,7 @@ public class InformationAgent extends MyAgent {
                     if (content != null) {
                         switch (content) {
                             case "Train":
-                                Instances data = info.GetTrainData(300);
+                                Instances data = info.GetTrainData();
                                 addBehaviour(new SendMsgBehaviour(data, "Train", Train, ACLMessage.REQUEST, "ClassifierAgent"));
                                 break;
                             case "Test":
@@ -53,7 +60,7 @@ public class InformationAgent extends MyAgent {
                                 addBehaviour(new SendMsgBehaviour(testAttrs,"PreTest",PreTest,ACLMessage.REQUEST,"ClassifierAgent"));
                                 break;
                             case "TestReady":
-                                Instances testData = info.GetTestData(15);
+                                Instances testData = info.GetTestData();
                                 addBehaviour(new OneShotBehaviour() {
                                     @Override
                                     public void action() {
