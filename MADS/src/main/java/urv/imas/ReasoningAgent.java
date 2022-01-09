@@ -24,7 +24,7 @@ public class ReasoningAgent extends MyAgent {
         votingThreshold = Double.parseDouble(ParseXML("configure.xml","votingthreshold"));
         addBehaviour(new WaitAndReply());
     }
-    private void MeasureResult(String measure, double[] results,double[] gt, double sum){
+    private String MeasureResult(String measure, double[] results,double[] gt, double sum){
         int TP=0,FP=0,TN=0,FN=0;
         for(int i =0;i<results.length;i++){
             results[i] /=sum;
@@ -39,10 +39,13 @@ public class ReasoningAgent extends MyAgent {
                 else TN++; // GT 0 Y 0
             }
         }
-        System.out.println("----------------------------------------------------------------------------");
-        System.out.println(measure+"\t"+Arrays.toString(results));
-        System.out.println("Metrics   \tTP\t\tTN\t\tFP\t\tFN\t\t");
-        System.out.println("          \t"+TP+"\t\t"+TN+"\t\t"+FP+"\t\t"+FN+"\t\t");
+        StringBuilder sb = new StringBuilder();
+        sb.append("----------------------------------------------------------------------------\n");
+        sb.append(measure+"\t"+Arrays.toString(results)+"\n");
+        sb.append("Metrics   \tTP\t\tTN\t\tFP\t\tFN\t\t\n");
+        sb.append("          \t"+TP+"\t\t"+TN+"\t\t"+FP+"\t\t"+FN+"\t\t\n");
+        System.out.print(sb);
+        return sb.toString();
     }
     private class WaitAndReply extends CyclicBehaviour {
         MessageTemplate filterMsg_Inform = null;
@@ -91,16 +94,14 @@ public class ReasoningAgent extends MyAgent {
                         System.out.println(msgRequest.getSender().getLocalName()+" Result "+Arrays.toString(testRes));
                         if(!testResults.containsKey(msgRequest.getSender().getLocalName()))
                             testResults.put(msgRequest.getSender().getLocalName(),testRes);
-                        System.out.println("\n---------------------Voting Result-----------------------\nAgent\t\t\t\t\t\t\t\t\t\tResult\t\t\t\t\t\t\t\t\t\t\tTPR\t\tFPR\t\tPrecision\tRecall\tFMeasure\tMCC\t\tROC\t\tPRC");
+                        System.out.println("\n---------------------Voting Result-----------------------\nAgent\t\t\t\t\t\t\t\t\t\tResult\t\t\t\t\t\t\t\t\t\t\tTPR\t\tFPR\tPrecision\t\tRecall\tFMeasure\tAccuracy");
                         double[] finalRUniform = new double[testRes.length];
                         double[] finalRTPR = new double[testRes.length];
                         double[] finalRFPR = new double[testRes.length];
                         double[] finalRPrecision = new double[testRes.length];
                         double[] finalRRecall = new double[testRes.length];
                         double[] finalRFMeasure = new double[testRes.length];
-                        double[] finalRMCC = new double[testRes.length];
-                        double[] finalRROC = new double[testRes.length];
-                        double[] finalRPRC = new double[testRes.length];
+                        double[] finalRAccuracy = new double[testRes.length];
 
                         double sumweightUniform=0;
                         double sumweightTPR=0;
@@ -108,9 +109,7 @@ public class ReasoningAgent extends MyAgent {
                         double sumweightPrecision=0;
                         double sumweightRecall=0;
                         double sumweightFMeasure=0;
-                        double sumweightMCC=0;
-                        double sumweightROC=0;
-                        double sumweightPRC=0;
+                        double sumweightAccuracy=0;
 
                         for (String k:testResults.keySet()) {
                             double[] r = testResults.get(k);
@@ -139,42 +138,56 @@ public class ReasoningAgent extends MyAgent {
                             for(int i=0;i<testRes.length;i++){
                                 finalRFMeasure[i]+=r[i]*trainMetrics.get(k).weightedFMeasure();
                             }
-                            sumweightMCC += trainMetrics.get(k).weightedMatthewsCorrelation();
+                            sumweightAccuracy += 1-trainMetrics.get(k).errorRate();
                             for(int i=0;i<testRes.length;i++){
-                                finalRMCC[i]+=r[i]*trainMetrics.get(k).weightedMatthewsCorrelation();
-                            }
-                            sumweightROC += trainMetrics.get(k).weightedAreaUnderROC();
-                            for(int i=0;i<testRes.length;i++){
-                                finalRROC[i]+=r[i]*trainMetrics.get(k).weightedAreaUnderROC();
-                            }
-                            sumweightPRC += trainMetrics.get(k).weightedAreaUnderPRC();
-                            for(int i=0;i<testRes.length;i++){
-                                finalRPRC[i]+=r[i]*trainMetrics.get(k).weightedAreaUnderPRC();
+                                finalRAccuracy[i]+=r[i]*(1-trainMetrics.get(k).errorRate());
                             }
 
                             System.out.println(k+"\t"+Arrays.toString(testResults.get(k))+
                                     "\t"+String.format("%1$.3f",trainMetrics.get(k).weightedTruePositiveRate())+
                                     "\t"+String.format("%1$.3f",trainMetrics.get(k).weightedFalsePositiveRate())+
                                     "\t"+String.format("%1$.3f",trainMetrics.get(k).weightedPrecision())+
-                                    "\t"+String.format("%1$.3f",trainMetrics.get(k).weightedRecall())+
+                                    "\t\t"+String.format("%1$.3f",trainMetrics.get(k).weightedRecall())+
                                     "\t"+String.format("%1$.3f",trainMetrics.get(k).weightedFMeasure())+
-                                    "\t"+String.format("%1$.3f",trainMetrics.get(k).weightedMatthewsCorrelation())+
-                                    "\t"+String.format("%1$.3f",trainMetrics.get(k).weightedAreaUnderROC())+
-                                    "\t"+String.format("%1$.3f",trainMetrics.get(k).weightedAreaUnderPRC()));
+                                    "\t"+String.format("%1$.3f",1-trainMetrics.get(k).errorRate()));
 
                         }
-                        System.out.println("----------------------------------------------------------------------------");
-                        System.out.println("GT        \t"+Arrays.toString(gt));
-                        MeasureResult("Uniform   ",finalRUniform,gt,sumweightUniform);
-                        MeasureResult("TPR       ",finalRTPR,gt,sumweightTPR);
-                        MeasureResult("FPR       ",finalRFPR,gt,sumweightFPR);
-                        MeasureResult("Precision ",finalRPrecision,gt,sumweightPrecision);
-                        MeasureResult("Recall    ",finalRRecall,gt,sumweightRecall);
-                        MeasureResult("FMeasure  ",finalRFMeasure,gt,sumweightFMeasure);
-                        MeasureResult("MCC       ",finalRMCC,gt,sumweightMCC);
-                        MeasureResult("ROC       ",finalRROC,gt,sumweightROC);
-                        MeasureResult("PRC       ",finalRPRC,gt,sumweightPRC);
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("----------------------------------------------------------------------------\n");
+                        sb.append("GT        \t"+Arrays.toString(gt)+"\n");
+                        System.out.println(sb);
 
+                        String sUniform =  MeasureResult("Uniform   ",finalRUniform,gt,sumweightUniform);
+                        String sTPR =  MeasureResult("TPR       ",finalRTPR,gt,sumweightTPR);
+                        String sFPR =  MeasureResult("FPR       ",finalRFPR,gt,sumweightFPR);
+                        String sPrecision =  MeasureResult("Precision ",finalRPrecision,gt,sumweightPrecision);
+                        String sRecall =  MeasureResult("Recall    ",finalRRecall,gt,sumweightRecall);
+                        String sFMeasure =  MeasureResult("FMeasure  ",finalRFMeasure,gt,sumweightFMeasure);
+                        String sAccuracy =  MeasureResult("Accuracy  ",finalRAccuracy,gt,sumweightAccuracy);
+                        switch (weightMessure){
+                            case "Uniform":
+                                sb.append(sUniform);
+                                break;
+                            case "TPR":
+                                sb.append(sTPR);
+                                break;
+                            case "FPR":
+                                sb.append(sFPR);
+                                break;
+                            case "Precision":
+                                sb.append(sPrecision);
+                                break;
+                            case "Recall":
+                                sb.append(sRecall);
+                                break;
+                            case "FMeasure":
+                                sb.append(sFMeasure);
+                                break;
+                            case "Accuracy":
+                                sb.append(sAccuracy);
+                                break;
+                        }
+                        addBehaviour(new SendMsgBehaviour(sb.toString(),Result,ACLMessage.REQUEST,"UserAgent"));
                     } catch (UnreadableException e) {
                         e.printStackTrace();
                     }

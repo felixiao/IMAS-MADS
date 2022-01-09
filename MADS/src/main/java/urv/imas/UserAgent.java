@@ -35,27 +35,33 @@ public class UserAgent extends MyAgent {
             ACLMessage msgRequest = receive(filterMsg_Request);
             if(msgRequest != null) {
                 addBehaviour(new AutoReplyBehaviour(msgRequest));
-                String content = msgRequest.getContent();
-                if (content != null) {
-                    switch (content){
-                        case "Start":
-                            addBehaviour(new SendMsgBehaviour("GetReady",Message,ACLMessage.REQUEST,"BrokerAgent"));
-                            break;
-                        case "ImReady":
-                            myLogger.log(Logger.INFO,"Full Loop! System is Ready!");
-                            addBehaviour(new ShowBehaviour());
-                            addBehaviour(new SendMsgBehaviour("Train",Message,ACLMessage.REQUEST,"BrokerAgent"));
-                            break;
-                        case "TrainedSuccess":
-                            myLogger.log(Logger.INFO,"System is Trained! Ready to Test");
-                            m_readyToTest= true;
-                            System.out.println("m_autotest = "+m_autotest);
-                            if(m_autotest) addBehaviour(new SendMsgBehaviour("Test",Message,ACLMessage.REQUEST,"BrokerAgent"));
-                            break;
-                        case "Test":
-                            if(m_readyToTest)
-                                addBehaviour(new SendMsgBehaviour("Test",Message,ACLMessage.REQUEST,"BrokerAgent"));
-                            break;
+                if(msgRequest.getProtocol()==Result){
+                    String content = msgRequest.getContent();
+                    addBehaviour(new ShowBehaviour(content));
+                }else if(msgRequest.getProtocol()==Message) {
+                    String content = msgRequest.getContent();
+                    if (content != null) {
+                        switch (content) {
+                            case "Start":
+                                if (!m_autostart)
+                                    addBehaviour(new SendMsgBehaviour("GetReady", Message, ACLMessage.REQUEST, "BrokerAgent"));
+                                break;
+                            case "ImReady":
+                                myLogger.log(Logger.INFO, "Full Loop! System is Ready!");
+                                addBehaviour(new SendMsgBehaviour("Train", Message, ACLMessage.REQUEST, "BrokerAgent"));
+                                break;
+                            case "TrainedSuccess":
+                                myLogger.log(Logger.INFO, "System is Trained! Ready to Test");
+                                m_readyToTest = true;
+                                System.out.println("m_autotest = " + m_autotest);
+                                if (m_autotest)
+                                    addBehaviour(new SendMsgBehaviour("Test", Message, ACLMessage.REQUEST, "BrokerAgent"));
+                                break;
+                            case "Test":
+                                if (m_readyToTest)
+                                    addBehaviour(new SendMsgBehaviour("Test", Message, ACLMessage.REQUEST, "BrokerAgent"));
+                                break;
+                        }
                     }
                 }
             }
@@ -65,9 +71,14 @@ public class UserAgent extends MyAgent {
         }
     }
     private class ShowBehaviour extends OneShotBehaviour{
+        private String m_msg=null;
+        public ShowBehaviour(String msg){
+            m_msg = msg;
+        }
+
         @Override
         public void action() {
-            myLogger.log(Logger.INFO,getInfo()+" at State Show!");
+            myLogger.log(Logger.INFO,"Final Result = \n"+m_msg);
         }
     }
 

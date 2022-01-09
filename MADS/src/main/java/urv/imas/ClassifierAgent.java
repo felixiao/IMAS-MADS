@@ -47,7 +47,10 @@ public class ClassifierAgent extends MyAgent {
                 else {
                     // We refuse to provide a proposal
                     System.out.println("Agent "+getLocalName()+": Refuse");
-                    throw new RefuseException("evaluation-failed");
+                    ACLMessage propose = cfp.createReply();
+                    propose.setPerformative(ACLMessage.REFUSE);
+                    propose.setContent(String.valueOf(proposal));
+                    return propose;
                 }
             }
         });
@@ -63,18 +66,7 @@ public class ClassifierAgent extends MyAgent {
         public void action() {
             ACLMessage msgInform = myAgent.receive(filterMsg_Inform);
             ACLMessage msgRequest = myAgent.receive(filterMsg_Request);
-//            ACLMessage msgRequestInstances = myAgent.receive(MessageTemplate.and(filterMsg_Request,MessageTemplate.MatchProtocol(Instances)));
-//            if(msgRequestInstances!=null){
-//                System.out.println("Receive MsgRequestInstances");
-//                addBehaviour(new AutoReplyBehaviour(msgRequestInstances));
-//                Instances data = null;
-//                try {
-//                    data = (Instances)msgRequestInstances.getContentObject();
-//                    System.out.println("Received Data!!!!!!!!! Num of Instance: "+data.numInstances()+" Ready to Train!");
-//                } catch (UnreadableException e) {
-//                    e.printStackTrace();
-//                }
-//            }
+
             if(msgRequest != null) {
                 addBehaviour(new AutoReplyBehaviour(msgRequest));
                 if(msgRequest.getProtocol()==Message){

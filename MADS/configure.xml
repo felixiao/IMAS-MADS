@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configure>
     <path>audit_risk.arff</path>
-    <numberofclassifier>20</numberofclassifier>
+    <numberofclassifier>30</numberofclassifier>
     <numberofattributes>6</numberofattributes>
     <numberoftrain>225</numberoftrain>
     <numberofval>75</numberofval>
@@ -13,15 +13,13 @@
     <autostart>true</autostart>
     <!--
     <votingmessure>Uniform</votingmessure>
-    <votingmessure>TP Rate</votingmessure>
-    <votingmessure>FP Rate</votingmessure>
+    <votingmessure>TPR</votingmessure>
+    <votingmessure>FPR</votingmessure>
     <votingmessure>Precision</votingmessure>
     <votingmessure>Recall</votingmessure>
-    <votingmessure>F-Measure</votingmessure>
-    <votingmessure>MCC</votingmessure>
-    <votingmessure>ROC Area</votingmessure>
-    <votingmessure>PRC Area</votingmessure>
+    <votingmessure>FMeasure</votingmessure>
+    <votingmessure>Accuracy</votingmessure>
      !-->
-    <votingmessure>F-Measure</votingmessure>
+    <votingmessure>FMeasure</votingmessure>
     <votingthreshold>0.5</votingthreshold>
 </Configure>
