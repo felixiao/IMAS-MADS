@@ -6,15 +6,31 @@ import jade.lang.acl.MessageTemplate;
 import jade.util.Logger;
 import jade.wrapper.AgentController;
 import jade.wrapper.StaleProxyException;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import java.io.File;
+import java.io.IOException;
 
 public class BrokerAgent extends MyAgent {
-    private int numClassifierAgents = 10;
+    private String datapath;
+    private int numOfClassifier = 10;
+    private int numOfAttributes = 6;
     protected void setup() {
         super.myType="BrokerAgent";
         super.setup();
-        for(int i =0; i<numClassifierAgents;i++) {
+        datapath = ParseXML("configure.xml","path");
+        numOfClassifier = Integer.parseInt(ParseXML("configure.xml","numberofclassifier"));
+        numOfAttributes = Integer.parseInt(ParseXML("configure.xml","numberofattributes"));
+
+        for(int i =0; i<numOfClassifier;i++) {
             try {
-                AgentController classfiers = getContainerController().createNewAgent("classifier"+i,"urv.imas.ClassifierAgent",null);
+                AgentController classfiers = getContainerController().createNewAgent("classifier"+i,"urv.imas.ClassifierAgent",new Object[]{numOfAttributes});
 
                 classfiers.start();
             } catch (StaleProxyException e) {
@@ -40,9 +56,9 @@ public class BrokerAgent extends MyAgent {
                 if (content != null) {
                     switch (content){
                         case "NotReady":
-                            addBehaviour(new SendMsgBehaviour("GetReady",Message,ACLMessage.REQUEST,"InformationAgent"));
+                            addBehaviour(new SendMsgBehaviour(datapath,GetReady,ACLMessage.REQUEST,"InformationAgent"));
                         case "GetReady":
-                            addBehaviour(new SendMsgBehaviour("GetReady",Message,ACLMessage.REQUEST,"InformationAgent"));
+                            addBehaviour(new SendMsgBehaviour(datapath,GetReady,ACLMessage.REQUEST,"InformationAgent"));
                             addBehaviour(new SendMsgBehaviour("GetReady",Message,ACLMessage.REQUEST,"ClassifierAgent"));
                             break;
                         case "Train":

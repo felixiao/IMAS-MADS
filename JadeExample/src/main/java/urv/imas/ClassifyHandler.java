@@ -21,17 +21,17 @@ public class ClassifyHandler {
     private double m_trainPercent = 75;
     private Instances m_dataTrain;
     private Instances m_dataValidation;
-    Evaluation eval;
+    public Evaluation eval;
     private int m_attrInd = 0;// reversed order, right = 23 (24th attribute)
     Classifier m_cls = new J48();
     private String m_id;
 
-    public ClassifyHandler(String name){
+    public ClassifyHandler(String name,int numberofAttrs){
         m_id = name;
         m_attrInd = 0;
         List<Integer> intList = Arrays.asList(23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0);
         Collections.shuffle(intList);
-        for(int i= 0;i<6;i++){
+        for(int i= 0;i<numberofAttrs;i++){
 //          System.out.println(m_id+" ["+b[ind]+"]");
             m_attrInd += 1<<(23-intList.get(i));
         }
@@ -53,23 +53,15 @@ public class ClassifyHandler {
         return result.toString();
     }
     public void LoadData(Instances data){
-        System.out.println("Load Data!!!!!!!!! Class Index = " +data.classIndex());
-        if (data.classIndex() == -1)
-            data.setClassIndex(data.numAttributes() - 1);
-        int ind = 0;
 
         int tempAtrI= m_attrInd;
         for(int i=23;i>=0;i--){
             if( (tempAtrI & 1) ==0) data.deleteAttributeAt(i);
             tempAtrI = tempAtrI >>> 1;
         }
-        System.out.println("Remain Attributes");
+        System.out.println(m_id+" Load Data!!!!!!!!! Class Index = " +data.classIndex()+" Name = "+data.classAttribute().name());
+        System.out.println(m_id+" Remain Attributes Data Summary\n"+data.toSummaryString());
 
-        ind = 0;
-        for (Enumeration<Attribute> e = data.enumerateAttributes(); e.hasMoreElements();) {
-            System.out.println("[" + ind + "] " + e.nextElement().name());
-            ind++;
-        }
         data.randomize(data.getRandomNumberGenerator(m_seed));
         m_dataTrain      = new Instances(data,0,225);
         m_dataValidation = new Instances(data,225,75);
@@ -81,9 +73,16 @@ public class ClassifyHandler {
             m_cls.buildClassifier(m_dataTrain);
             eval = new Evaluation(m_dataTrain);
             eval.evaluateModel(m_cls, m_dataValidation);
+
             System.out.println(eval.toMatrixString("\n----------"+m_id+" Validation Matrix----------\n"));
             System.out.println(eval.toSummaryString("\n----------"+m_id+" Validation Results----------\n", true));
             System.out.println(eval.toClassDetailsString("\n------------"+m_id+" Validation Class Detail Results------------\n"));
+            System.out.println((m_id+" Train Class Attr = "+m_dataTrain.instance(0).classAttribute().name()));
+            System.out.println(m_id+" Summary Result "+m_dataTrain.toSummaryString());
+            System.out.println(m_id+"         Result "+m_dataTrain.instance(0).toString());
+            System.out.println((m_id+" Val Class Attr = "+m_dataValidation.instance(0).classAttribute().name()));
+            System.out.println(m_id+" Summary Result "+m_dataValidation.toSummaryString());
+            System.out.println(m_id+"         Result "+m_dataValidation.instance(0).toString());
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -91,13 +90,11 @@ public class ClassifyHandler {
         }
     }
     public boolean Fit(int attrs){
-        System.out.println(m_id+ " Attrs = "+intToString(m_attrInd,4) +" = "+m_attrInd);
-        System.out.println(m_id+ " Compr = "+intToString(attrs,4));
-        System.out.println(m_id+ " Resul = "+intToString((attrs & m_attrInd),4)+" = "+(attrs & m_attrInd));
-        System.out.println(m_id+ " Resut = "+((attrs & m_attrInd) == m_attrInd));
+        System.out.println(m_id+ " Attrs =\t"+intToString(m_attrInd,4) +" = "+m_attrInd+"\n\t\t\t\t\t"+intToString(attrs,4)+"\n\t\t\t\t\t"+intToString((attrs & m_attrInd),4)+" = "+(attrs & m_attrInd));
+
         return ((attrs & m_attrInd) == m_attrInd);
     }
-    public int[] Predict(Instances data){
+    public double[] Predict(Instances data){
         try {
             int tempAtrI= m_attrInd;
             for(int i=23;i>=0;i--){
@@ -113,14 +110,24 @@ public class ClassifyHandler {
             eval = new Evaluation(m_dataTrain);
             eval.evaluateModel(m_cls, data);
 
-            int[] predR = new int[data.numInstances()];
+            double[] predR = new double[data.numInstances()*2];
             ind =0;
             for (Instance i:data ){
-                predR[ind++] = (int)m_cls.classifyInstance(data.instance(0));
+                predR[ind++] = eval.evaluateModelOnce(m_cls,i);
             }
             System.out.println(eval.toMatrixString("\n----------"+m_id+" Test Matrix----------\n"));
-            System.out.println(eval.toSummaryString("\n----------"+m_id+" Test Results----------\n", true));
+//            System.out.println(eval.toSummaryString("\n----------"+m_id+" Test Results----------\n", true));
             System.out.println(eval.toClassDetailsString("\n------------"+m_id+" Test Class Detail Results------------\n"));
+            System.out.println((m_id+" Test Class Attr = "+data.instance(0).classAttribute().name()));
+            System.out.println(m_id+" Summary Result "+data.toSummaryString());
+
+            System.out.println(m_id+" Predict Result "+Arrays.toString(predR));
+            double[] gtLables = new double[data.numInstances()];
+            for(int i=0;i<data.numInstances();i++){
+                gtLables[i] = (double)data.get(i).classValue();
+                predR[i+data.numInstances()] = gtLables[i];
+            }
+            System.out.println(m_id+" GT      Result "+Arrays.toString(gtLables));
             return predR;
         } catch (Exception e) {
             e.printStackTrace();

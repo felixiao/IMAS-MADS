@@ -2,15 +2,29 @@ package urv.imas;
 
 import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.TickerBehaviour;
+import jade.core.behaviours.WakerBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.util.Logger;
+import org.w3c.dom.Document;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.File;
 
 public class UserAgent extends MyAgent {
+    private boolean m_autotest=false;
+    private boolean m_autostart = false;
+    private boolean m_readyToTest= false;
     protected void setup() {
         super.myType="UserAgent";
         super.setup();
+        m_autotest = Boolean.parseBoolean(ParseXML("configure.xml","autotest"));
+        m_autostart = Boolean.parseBoolean(ParseXML("configure.xml","autostart"));
+        System.out.println("m_autotest = "+m_autotest);
         addBehaviour(new WaitAndReply());
+        if(m_autostart)addBehaviour(new SendMsgBehaviour("GetReady",Message,ACLMessage.REQUEST,"BrokerAgent"));
     }
 
     // Wait and reply
@@ -23,24 +37,31 @@ public class UserAgent extends MyAgent {
         }
         @Override
         public void action() {
-            ACLMessage msgInform = myAgent.receive(filterMsg_Inform);
-            ACLMessage msgRequest = myAgent.receive(filterMsg_Request);
+
+            ACLMessage msgInform = receive(filterMsg_Inform);
+            ACLMessage msgRequest = receive(filterMsg_Request);
             if(msgRequest != null) {
                 addBehaviour(new AutoReplyBehaviour(msgRequest));
                 String content = msgRequest.getContent();
                 if (content != null) {
                     switch (content){
                         case "Start":
-                            myAgent.addBehaviour(new SendMsgBehaviour("GetReady",Message,ACLMessage.REQUEST,"BrokerAgent"));
+                            addBehaviour(new SendMsgBehaviour("GetReady",Message,ACLMessage.REQUEST,"BrokerAgent"));
                             break;
                         case "ImReady":
                             myLogger.log(Logger.INFO,"Full Loop! System is Ready!");
-                            myAgent.addBehaviour(new ShowBehaviour());
-                            myAgent.addBehaviour(new SendMsgBehaviour("Train",Message,ACLMessage.REQUEST,"BrokerAgent"));
+                            addBehaviour(new ShowBehaviour());
+                            addBehaviour(new SendMsgBehaviour("Train",Message,ACLMessage.REQUEST,"BrokerAgent"));
                             break;
                         case "TrainedSuccess":
                             myLogger.log(Logger.INFO,"System is Trained! Ready to Test");
-                            myAgent.addBehaviour(new SendMsgBehaviour("Test",Message,ACLMessage.REQUEST,"BrokerAgent"));
+                            m_readyToTest= true;
+                            System.out.println("m_autotest = "+m_autotest);
+                            if(m_autotest) addBehaviour(new SendMsgBehaviour("Test",Message,ACLMessage.REQUEST,"BrokerAgent"));
+                            break;
+                        case "Test":
+                            if(m_readyToTest)
+                                addBehaviour(new SendMsgBehaviour("Test",Message,ACLMessage.REQUEST,"BrokerAgent"));
                             break;
                     }
                 }

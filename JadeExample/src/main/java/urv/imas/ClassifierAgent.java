@@ -18,7 +18,7 @@ public class ClassifierAgent extends MyAgent {
         super.myType="ClassifierAgent";
 
         super.setup();
-        this.classifier=new ClassifyHandler(super.getLocalName());
+        this.classifier=new ClassifyHandler(super.getLocalName(),(int)getArguments()[0]);
         addBehaviour(new WaitAndReply());
     }
     private class WaitAndReply extends CyclicBehaviour {
@@ -62,7 +62,7 @@ public class ClassifierAgent extends MyAgent {
                         classifier.LoadData(data);
                         System.out.println("Received Data!!!!!!!!! Num of Instance: " + data.numInstances() + " Ready to Train!");
                         boolean success = classifier.Train();
-                        if (success) addBehaviour(new SendMsgBehaviour("TrainedSuccess", Message, ACLMessage.INFORM, "ReasoningAgent"));
+                        if (success) addBehaviour(new SendMsgBehaviour(classifier.eval,"TrainedSuccess", TrainedSuccess, ACLMessage.REQUEST, "ReasoningAgent"));
                         else System.out.println("Not Match!");
                     } catch (UnreadableException e) {
                         e.printStackTrace();
@@ -81,7 +81,7 @@ public class ClassifierAgent extends MyAgent {
                 else if(msgRequest.getProtocol()==Test) {
                     try {
                         Instances testData = (Instances) msgRequest.getContentObject();
-                        int[] predictResult = classifier.Predict(testData);
+                        double[] predictResult = classifier.Predict(testData);
                         if(predictResult!=null)
                             addBehaviour(new SendMsgBehaviour(predictResult,"TestSuccess",Result,ACLMessage.REQUEST,"ReasoningAgent"));
                     } catch (UnreadableException e) {
